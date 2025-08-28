@@ -1,0 +1,97 @@
+# eslint-disable yml/no-empty-mapping-value
+name: Rust
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      debug_enabled:
+        type: boolean
+        description: Enable debugging
+        required: false
+        default: false
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Job  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  build:
+    name: job ❯ build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: true
+      matrix:
+        target: [x86_64-unknown-linux-gnu, x86_64-unknown-linux-musl]
+
+    steps:
+      # ─────────────────────────────────────────────────────
+      - name: Bootstrap ❯❯ actions/checkout@v4
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Bootstrap ❯❯ Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+          components: 'rustfmt'
+
+      - name: Bootstrap ❯❯ Debug ❯❯ Show version information (Rust, cargo, GCC)
+        run: |
+          gcc --version || true
+          rustup -V
+          rustup toolchain list
+          rustup default
+          cargo -V
+          rustc -V
+
+      - name: Bootstrap ❯❯ Preinstall & Prepare Environment
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-dev openssl libssl-dev
+          echo "PROJECT_NAME=$(sed -n 's/^name = "\(.*\)"/\1/p' Cargo.toml)" >> "$GITHUB_ENV"
+          echo "PROJECT_VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n1)" >> "$GITHUB_ENV"
+          if [ "$TARGET" = "x86_64-unknown-linux-musl" ]; then
+            # install cross-rs
+            cargo install cross
+          fi
+
+      - name: Bootstrap ❯❯ Restore Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      # ─────────────────────────────────────────────────────
+      - name: Rust ❯❯ Build pow-solver
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          echo "✨ Building pow-solver..."
+          if [ "$TARGET" = "x86_64-unknown-linux-musl" ]; then
+            export RUSTFLAGS="-C strip=symbols -C target-cpu=generic -C link-arg=-s"
+            # cross build --release \
+            #   --bin pow-solver \
+            #   -p pow-solver \
+            #   --target="$TARGET"
+            # strip target/${{ matrix.target }}/release/pow-solver 2>/dev/null || true
+            # ls -la target/${{ matrix.target }}/release/
+          else
+            export RUSTFLAGS="-C strip=symbols -C target-cpu=generic -C link-arg=-s"
+            cargo build --release \
+              --bin pow-solver \
+              -p pow-solver \
+              --target="$TARGET"
+            strip target/${{ matrix.target }}/release/pow-solver 2>/dev/null || true
+            ls -la target/${{ matrix.target }}/release/
+          fi
+          echo "✨ pow-solver build completed!"
+
+      - name: Upload ❯❯ Upload pow-solver
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}__pow-solver
+          path: target/${{ matrix.target }}/release/pow-solver
+          retention-days: 30
