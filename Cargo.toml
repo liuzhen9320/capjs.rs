@@ -2,6 +2,12 @@
 name = "pow-solver"
 version = "0.1.0"
 edition = "2024"
+authors = ["Liu Zhen <liuzhen9320@5.1.e.7.0.a.a.e.0.a.2.ip6.arpa>"]
+description = "A CLI tool for resolving Proof-of-Work challenges in CapJS, designed for efficiency and ease of use."
+license = "MIT"
+repository = "https://github.com/liuzhen9320/capjs.rs"
+homepage = "https://github.com/liuzhen9320/capjs.rs"
+keywords = ["pow", "javascript", "wasm"]
 
 [dependencies]
 sha2 = "0.10"
@@ -10,4 +16,3 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 rayon = "1.7"
 indicatif = "0.17"
-ccb = "0.1.1"
